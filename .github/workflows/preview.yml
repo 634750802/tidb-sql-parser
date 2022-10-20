@@ -1,0 +1,33 @@
+# This workflow will run tests using node and then publish a package to GitHub Packages when a release is created
+# For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
+
+name: Preview
+
+on:
+  push:
+    branches: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v3.3.1
+      
+      - name: Build wasm
+        run: |
+          npm run prepare:go-wasm-runtime
+          npm run build
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v1.0.4
+        with:
+          path: static
+      
+      - name: Deploy GitHub Pages site
+        uses: actions/deploy-pages@v1.2.2
