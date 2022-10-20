@@ -10,9 +10,6 @@ on:
 jobs:  
   build:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      pages: write
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -37,6 +34,11 @@ jobs:
         with:
           path: static
   deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      deployments: write
+      pages: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
