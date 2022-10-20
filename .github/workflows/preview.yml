@@ -36,6 +36,11 @@ jobs:
         uses: actions/upload-pages-artifact@v1.0.4
         with:
           path: static
-      
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy GitHub Pages site
+        id: deployment
         uses: actions/deploy-pages@v1.2.2
