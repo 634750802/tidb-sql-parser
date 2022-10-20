@@ -2,12 +2,17 @@
 # For more information see: https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages
 
 name: Preview
-
+permissions:
+  contents: read
+  id-token: write
+  deployments: write
+  pages: write
 on:
   push:
-    branches: [main]
+    branches:
+      - main
 
-jobs:  
+jobs:
   build:
     runs-on: ubuntu-latest
     steps:
@@ -23,7 +28,7 @@ jobs:
 
       - name: Install deps
         run: GOPATH=$(pwd)/.go go mod download
-      
+
       - name: Build wasm
         run: |
           npm run prepare:go-wasm-runtime
@@ -35,10 +40,6 @@ jobs:
           path: static
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      deployments: write
-      pages: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
