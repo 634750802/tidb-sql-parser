@@ -5,7 +5,7 @@ name: Preview
 
 on:
   push:
-    branches: [created]
+    branches: [main]
 
 jobs:
   build:
