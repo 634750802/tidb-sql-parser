@@ -32,6 +32,7 @@ jobs:
       - name: Build wasm
         run: |
           npm run prepare:go-wasm-runtime
+          npm run prepare:preview-html
           GOPATH=$(pwd)/.go npm run build
 
       - name: Upload GitHub Pages artifact

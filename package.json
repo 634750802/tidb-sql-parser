@@ -8,7 +8,8 @@
     "prepare:go-wasm-runtime": "cp \"$(go env GOROOT)/misc/wasm/wasm_exec.js\" static/",
     "prebuild": " sudo ./patch.sh patch",
     "postbuild": "sudo ./patch.sh unpatch",
-    "build": "GOOS=js GOARCH=wasm go build -o static/main.wasm main.go"
+    "build": "GOOS=js GOARCH=wasm go build -o static/main.wasm main.go",
+    "prepare:preview-html": "sed -e 's/src=\"\\//src=\"\\/tidb-sql-parser\\//g' static/index.html > static/_index.html && mv static/_index.html static/index.html"
   },
   "author": "djagger",
   "license": "MIT",
