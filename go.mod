@@ -2,7 +2,7 @@ module tidb-sql-parser
 
 go 1.18
 
-require github.com/pingcap/tidb/parser v0.0.0-20220928054144-415d03f956f6
+require github.com/pingcap/tidb/parser v0.0.0-20221020091154-4f5eafd721e5
 
 require (
 	github.com/cznic/mathutil v0.0.0-20181122101859-297441e03548 // indirect

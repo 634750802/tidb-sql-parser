@@ -18,6 +18,8 @@ github.com/pingcap/log v0.0.0-20210625125904-98ed8e2eb1c7 h1:k2BbABz9+TNpYRwsCCF
 github.com/pingcap/log v0.0.0-20210625125904-98ed8e2eb1c7/go.mod h1:8AanEdAHATuRurdGxZXBz0At+9avep+ub7U1AGYLIMM=
 github.com/pingcap/tidb/parser v0.0.0-20220928054144-415d03f956f6 h1:Xew3GdpZrZaDlkFi6JyH5HdXvRn3W6fqb+CSfM9sEgE=
 github.com/pingcap/tidb/parser v0.0.0-20220928054144-415d03f956f6/go.mod h1:wjvp+T3/T9XYt0nKqGX3Kc1AKuyUcfno6LTc6b2A6ew=
+github.com/pingcap/tidb/parser v0.0.0-20221020091154-4f5eafd721e5 h1:v6qI3E0mTcWmlHvgruDyuDiFAc86tZMozJydDyEdMuA=
+github.com/pingcap/tidb/parser v0.0.0-20221020091154-4f5eafd721e5/go.mod h1:wjvp+T3/T9XYt0nKqGX3Kc1AKuyUcfno6LTc6b2A6ew=
 github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
