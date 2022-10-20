@@ -20,12 +20,12 @@ jobs:
         uses: actions/setup-go@v3.3.1
 
       - name: Install deps
-        run: GOPATH=.go go mod download
+        run: GOPATH=$(pwd)/.go go mod download
       
       - name: Build wasm
         run: |
           npm run prepare:go-wasm-runtime
-          GOPATH=.go npm run build
+          GOPATH=$(pwd)/.go npm run build
 
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v1.0.4
