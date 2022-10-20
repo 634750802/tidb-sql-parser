@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <script src="/wasm_exec.js"></script>
+    <script src="/lib.js"></script>
+    <title>TiDB SQL Parser</title>
+    <script>
+        function doParse() {
+            const sql = document.getElementById('sql').value
+            console.log(sql)
+            const parsed = __tidbSqlParse(sql)
+            document.getElementById('pre').textContent = JSON.stringify(parsed, undefined, 2)
+        }
+    </script>
+</head>
+<body>
+<label>
+    SQL:
+    <textarea id="sql" placeholder="Input SQL"></textarea>
+</label>
+<br/>
+<button type="button" onclick="doParse()">Parse!</button>
+<br/>
+<pre id="pre">
+</pre>
+</body>
+</html>

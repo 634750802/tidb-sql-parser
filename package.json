@@ -1,0 +1,18 @@
+{
+  "name": "tidb-sql-parser",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "serve static/",
+    "prepare:go-wasm-runtime": "cp \"$(go env GOROOT)/misc/wasm/wasm_exec.js\" static/",
+    "prebuild": " sudo ./patch.sh patch",
+    "postbuild": "sudo ./patch.sh unpatch",
+    "build": "GOOS=js GOARCH=wasm go build -o static/main.wasm main.go"
+  },
+  "author": "djagger",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.0.1"
+  }
+}
