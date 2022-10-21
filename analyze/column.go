@@ -26,16 +26,6 @@ const (
 
 var EvalTypes = []string{ETInt, ETReal, ETDecimal, ETString, ETDatetime, ETTimestamp, ETDuration, ETJson}
 
-func (t *Tp) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Type     string
-		Nullable bool
-	}{
-		EvalTypes[int(t.Type)],
-		t.Nullable,
-	})
-}
-
 type Column struct {
 	Tp
 	Name string
@@ -45,9 +35,21 @@ func NewColumn(name string, tp types.EvalType, nullable bool) *Column {
 	return &Column{Tp: Tp{tp, nullable}, Name: name}
 }
 
-func (c Column) as(name string) *Column {
+func (c *Column) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Name     string
+		Type     string
+		Nullable bool
+	}{
+		c.Name,
+		EvalTypes[int(c.Type)],
+		c.Nullable,
+	})
+}
+
+func (c *Column) as(name string) *Column {
 	if name == "" {
-		return &c
+		return c
 	} else {
 		return &Column{
 			Tp: Tp{

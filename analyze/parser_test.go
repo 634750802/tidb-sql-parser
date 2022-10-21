@@ -18,7 +18,7 @@ func TestSimpleSQL(t *testing.T) {
 	AssertColumnEquals(t, p.ctx.getTable("test").GetColumn("id"), id)
 	AssertColumnEquals(t, p.ctx.getTable("test").GetColumn("name"), name)
 
-	columns := p.Parse("select id, name, 1 as d, 's' as s, CURRENT_TIMESTAMP as t, 1 + 1.2 as n from test")
+	columns := p.Parse("select id, name, 1 as d, 's' as s, CURRENT_TIMESTAMP as t, 1 + 1.2 as n, 1 + 1 from test")
 
 	AssertColumnEquals(t, columns[0], id)
 	AssertColumnEquals(t, columns[1], name)
@@ -26,4 +26,5 @@ func TestSimpleSQL(t *testing.T) {
 	AssertColumnEquals(t, columns[3], NewColumn("s", types.ETString, false))
 	AssertColumnEquals(t, columns[4], NewColumn("t", types.ETTimestamp, false))
 	AssertColumnEquals(t, columns[5], NewColumn("n", types.ETInt, false))
+	AssertColumnEquals(t, columns[6], NewColumn("1 + 1", types.ETInt, false))
 }

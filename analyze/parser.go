@@ -147,7 +147,7 @@ func (ctx *ParseContext) parseSelectStmt(as string, stmt *ast.SelectStmt) *Table
 
 func getFieldExprName(f *ast.SelectField) string {
 	if f.AsName.L == "" {
-		return f.Expr.OriginalText()
+		return f.OriginalText()
 	} else {
 		return f.AsName.L
 	}
