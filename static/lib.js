@@ -44,6 +44,17 @@ class Parser {
         return __tidbSqlParserExecuteCmd(5, sql)
     }
 
+    getTable (name) {
+        console.debug('[tidb-sql-parser] get table:', name)
+        return __tidbSqlParserExecuteCmd(6, name)
+    }
+
+    defineTransparentFunc (name) {
+        console.debug('[tidb-sql-parser] define transparent func:', name)
+        return __tidbSqlParserExecuteCmd(7, name)
+    }
+
+
     close() {
         console.debug('[tidb-sql-parser] open close')
         return __tidbSqlParserExecuteCmd(2)

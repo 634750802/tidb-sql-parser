@@ -1,6 +1,7 @@
 package analyze
 
 import (
+	"encoding/json"
 	"strings"
 )
 
@@ -53,6 +54,16 @@ func (t *TableDefine) Merge(tables ...Table) {
 	}
 }
 
+func (t *TableDefine) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Name    string
+		Columns []*Column
+	}{
+		Name:    t.name,
+		Columns: t.columnsArr,
+	})
+}
+
 func MergeTables(as string, tables ...Table) Table {
 	res := NewTableDefine(as)
 
@@ -72,18 +83,34 @@ type TableRef struct {
 	table Table
 }
 
-func NewTableRef(as string, table Table) *TableRef {
-	return &TableRef{as: as, table: table}
+func NewTableRef(as string, table Table) Table {
+	if as == UNNAMED {
+		return table
+	} else {
+		return &TableRef{as: as, table: table}
+	}
 }
 
-func (t TableRef) Name() string {
+func (t *TableRef) Name() string {
 	return t.as
 }
 
-func (t TableRef) Columns() []*Column {
+func (t *TableRef) Columns() []*Column {
 	return t.table.Columns()
 }
 
-func (t TableRef) GetColumn(name string) *Column {
+func (t *TableRef) GetColumn(name string) *Column {
 	return t.table.GetColumn(name)
+}
+
+func (t *TableRef) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Name    string
+		As      string
+		Columns []*Column
+	}{
+		Name:    t.Name(),
+		As:      t.Name(),
+		Columns: t.Columns(),
+	})
 }

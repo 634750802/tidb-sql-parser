@@ -48,6 +48,9 @@ func (c *Column) MarshalJSON() ([]byte, error) {
 }
 
 func (c *Column) as(name string) *Column {
+	if c.Name != UNNAMED {
+		return c
+	}
 	if name == "" {
 		return c
 	} else {

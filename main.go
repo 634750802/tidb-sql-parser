@@ -16,6 +16,8 @@ const (
 	BridgeCmdParserAddDdl
 	BridgeCmdParserDefineFunc
 	BridgeCmdParserParse
+	BridgeCmdParserGetTable
+	BridgeCmdParserDefineTransparentFunc
 )
 
 const (
@@ -74,6 +76,17 @@ func (c *cmdCtx) cmd(cmd int, args []js.Value) *cmdReturn {
 		}
 		cols := c.p.Parse(args[0].String())
 		return &cmdReturn{BridgeCodeOk, cols}
+	case BridgeCmdParserGetTable:
+		if c.p == nil {
+			return &cmdReturn{BridgeCodeParserNotOpen, "BridgeCodeParserNotOpen"}
+		}
+		return &cmdReturn{BridgeCodeOk, c.p.GetTable(args[0].String())}
+	case BridgeCmdParserDefineTransparentFunc:
+		if c.p == nil {
+			return &cmdReturn{BridgeCodeParserNotOpen, "BridgeCodeParserNotOpen"}
+		}
+		c.p.DefineTransparentFunc(args[0].String())
+		return ok
 	default:
 		return &cmdReturn{BridgeCodeBadCmd, "BridgeCodeBadCmd"}
 	}

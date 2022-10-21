@@ -4,6 +4,7 @@ import (
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/types"
+	"golang.org/x/exp/maps"
 	"reflect"
 	"strings"
 	"tidb-sql-parser/utils"
@@ -13,14 +14,16 @@ type Parser struct {
 	ctx    *ParseContext
 	parser *parser.Parser
 
-	FuncTypes map[string]*Tp
+	FuncTypes       map[string]*Tp
+	TransparentFunc map[string]bool
 }
 
 func NewParser() *Parser {
 	p := &Parser{
-		ctx:       newParseContext(nil),
-		parser:    parser.New(),
-		FuncTypes: map[string]*Tp{},
+		ctx:             newParseContext(nil),
+		parser:          parser.New(),
+		FuncTypes:       map[string]*Tp{},
+		TransparentFunc: map[string]bool{},
 	}
 	p.ctx.parser = p
 	return p
@@ -30,8 +33,16 @@ func (p *Parser) DefineFunc(name string, tp *Tp) {
 	p.FuncTypes[strings.ToLower(name)] = tp
 }
 
+func (p *Parser) DefineTransparentFunc(name string) {
+	p.TransparentFunc[strings.ToLower(name)] = true
+}
+
 func (p *Parser) FuncType(name string) *Tp {
 	return p.FuncTypes[strings.ToLower(name)]
+}
+
+func (p *Parser) TransparentFuncType(name string) bool {
+	return p.TransparentFunc[strings.ToLower(name)] == true
 }
 
 func (p *Parser) AddDdl(sql string) {
@@ -40,9 +51,12 @@ func (p *Parser) AddDdl(sql string) {
 		panic(err)
 	}
 	for _, stmt := range stmts {
-		if c, ok := stmt.(*ast.CreateTableStmt); ok {
-			p.ctx.addTables(parseCreateTableStmt(c))
-		} else {
+		switch s := stmt.(type) {
+		case *ast.CreateTableStmt:
+			p.ctx.addTables(parseCreateTableStmt(s))
+		case *ast.CreateIndexStmt:
+			continue
+		default:
 			panic(unimplementedNodeType(stmt))
 		}
 	}
@@ -58,6 +72,10 @@ func (p *Parser) Parse(sql string) []*Column {
 	} else {
 		panic(unimplementedNodeType(stmt))
 	}
+}
+
+func (p *Parser) GetTable(table string) Table {
+	return p.ctx.getTable(table)
 }
 
 type ParseContext struct {
@@ -76,9 +94,16 @@ func newParseContext(parent *ParseContext) *ParseContext {
 	}
 }
 
+func (ctx *ParseContext) addTable(table Table) {
+	if table.Name() == UNNAMED {
+		return
+	}
+	ctx.tables[table.Name()] = table
+}
+
 func (ctx *ParseContext) addTables(tables ...Table) {
 	for _, table := range tables {
-		ctx.tables[table.Name()] = table
+		ctx.addTable(table)
 	}
 }
 
@@ -86,6 +111,9 @@ func (ctx *ParseContext) getTable(name string) Table {
 	t := ctx.tables[name]
 	if t == nil && ctx.parent != nil {
 		t = ctx.parent.getTable(name)
+	}
+	if t == nil {
+		panic("failed to get table " + name)
 	}
 	return t
 }
@@ -105,6 +133,7 @@ func (ctx *ParseContext) getColumn(table string, column string) *Column {
 			return t.GetColumn(column)
 		}
 	}
+	println("failed to get column ", table, " ", column, " in ", strings.Join(maps.Keys(ctx.tables), ", "))
 	return nil
 }
 
@@ -120,8 +149,10 @@ func parseCreateTableStmt(stmt *ast.CreateTableStmt) *TableDefine {
 func (ctx *ParseContext) parseSelectStmt(as string, stmt *ast.SelectStmt) *TableDefine {
 	nCtx := newParseContext(ctx)
 
-	nCtx.parseWithClause(stmt.With)
+	nCtx.parseWithClause(stmt.With, nCtx.addTable)
+
 	from := nCtx.parseJoin(UNNAMED, stmt.From.TableRefs)
+	nCtx.addTables(from)
 
 	table := NewTableDefine(as)
 	for _, field := range stmt.Fields.Fields {
@@ -132,9 +163,9 @@ func (ctx *ParseContext) parseSelectStmt(as string, stmt *ast.SelectStmt) *Table
 				table.Merge(nCtx.getTable(field.WildCard.Table.L))
 			}
 		} else {
-			col := ctx.parseExpr(field.Expr).as(getFieldExprName(field))
+			col := nCtx.parseExpr(field.Expr).as(getFieldExprName(field))
 			if col == nil {
-				ctx.warn = append(ctx.warn, "unhandled column "+field.OriginalText())
+				nCtx.warn = append(nCtx.warn, "unhandled column "+field.OriginalText())
 			} else {
 				table.AddColumn(col)
 			}
@@ -155,6 +186,11 @@ func getFieldExprName(f *ast.SelectField) string {
 
 func booleanColumn(nullable bool) *Column {
 	return NewColumn(UNNAMED, types.ETInt, nullable)
+}
+
+func mergeTypes(tps ...*Tp) *Tp {
+	// TODO
+	return tps[0]
 }
 
 func mergeColumns(name string, columns ...*Column) *Column {
@@ -195,14 +231,14 @@ func (ctx *ParseContext) parseExpr(expr ast.ExprNode) *Column {
 	} else if t, ok := expr.(ast.ValueExpr); ok {
 		return NewColumn(UNNAMED, t.GetType().EvalType(), false)
 	} else if f, ok := expr.(*ast.AggregateFuncExpr); ok {
-		if tp := ctx.parser.FuncType(f.F); tp != nil {
+		if tp := ctx.parseFuncType(f.F, f.Args); tp != nil {
 			return &Column{*tp, UNNAMED}
 		} else {
 			ctx.warn = append(ctx.warn, "meet unknown aggregate func "+f.F)
 			return NewColumn(UNNAMED, types.ETString, false)
 		}
 	} else if f, ok := expr.(*ast.FuncCallExpr); ok {
-		if tp := ctx.parser.FuncType(f.FnName.L); tp != nil {
+		if tp := ctx.parseFuncType(f.FnName.L, f.Args); tp != nil {
 			return &Column{*tp, UNNAMED}
 		} else {
 			ctx.warn = append(ctx.warn, "meet unknown aggregate func "+f.FnName.O)
@@ -212,6 +248,22 @@ func (ctx *ParseContext) parseExpr(expr ast.ExprNode) *Column {
 	panic(unimplementedNodeType(expr))
 }
 
+func (ctx *ParseContext) parseFuncType(name string, args []ast.ExprNode) *Tp {
+	if tp := ctx.parser.FuncType(name); tp != nil {
+		return tp
+	}
+	if ctx.parser.TransparentFuncType(name) {
+		args := utils.Map(args, func(t ast.ExprNode) *Tp {
+			return &ctx.parseExpr(t).Tp
+		})
+		return mergeTypes(args...)
+	}
+	return &Tp{
+		types.ETString,
+		false,
+	}
+}
+
 func (ctx *ParseContext) parseSubqueryExpr(as string, expr *ast.SubqueryExpr) Table {
 	nCtx := newParseContext(ctx)
 	t := nCtx.parseResultSetNode(as, expr.Query)
@@ -219,13 +271,13 @@ func (ctx *ParseContext) parseSubqueryExpr(as string, expr *ast.SubqueryExpr) Ta
 	return t
 }
 
-func (ctx *ParseContext) parseWithClause(w *ast.WithClause) []Table {
+func (ctx *ParseContext) parseWithClause(w *ast.WithClause, cb func(Table)) {
 	if w == nil {
-		return []Table{}
+		return
 	}
-	return utils.Map(w.CTEs, func(t *ast.CommonTableExpression) Table {
-		return ctx.parseSubqueryExpr(t.Name.L, t.Query)
-	})
+	for _, c := range w.CTEs {
+		cb(ctx.parseSubqueryExpr(c.Name.L, c.Query))
+	}
 }
 
 func (ctx *ParseContext) parseResultSetNode(as string, r ast.ResultSetNode) Table {
@@ -248,19 +300,19 @@ func (ctx *ParseContext) parseResultSetNode(as string, r ast.ResultSetNode) Tabl
 
 func (ctx *ParseContext) parseJoin(as string, j *ast.Join) Table {
 	left := ctx.parseResultSetNode(as, j.Left)
+	ctx.addTable(left)
 	if j.Right != nil {
 		right := ctx.parseResultSetNode(UNNAMED, j.Right)
+		ctx.addTable(right)
 		return MergeTables(as, left, right)
 	}
 	return left
 }
 
 func (ctx *ParseContext) parseSetOprStmt(as string, s *ast.SetOprStmt) Table {
-	cteTables := ctx.parseWithClause(s.With)
-	ctx.addTables(cteTables...)
+	ctx.parseWithClause(s.With, ctx.addTable)
 
-	cteTables = ctx.parseWithClause(s.SelectList.With)
-	ctx.addTables(cteTables...)
+	ctx.parseWithClause(s.SelectList.With, ctx.addTable)
 
 	tables := make([]Table, len(s.SelectList.Selects))
 	for i, node := range s.SelectList.Selects {
@@ -288,7 +340,7 @@ func (ctx *ParseContext) parseTableSource(ts *ast.TableSource) Table {
 	}
 
 	if s, ok := ts.Source.(*ast.TableName); ok {
-		return ctx.getTable(s.Name.L)
+		return NewTableRef(ts.AsName.L, ctx.getTable(s.Name.L))
 	}
 
 	panic(unimplementedNodeType(ts.Source))

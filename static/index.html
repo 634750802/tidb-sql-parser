@@ -36,7 +36,7 @@
     </style>
 
     <script>
-        function __onInit() {
+        async function __onInit() {
             function blk(type, c) {
                 const div = document.createElement('div')
                 div.classList.add('block', 'block-' + type)
@@ -60,13 +60,24 @@
                 document.body.appendChild(blk('out', cb('json', JSON.stringify(res, undefined, 2))))
             }
 
+            const schema = await fetch(document.baseURI + 'schema.sql').then(res => res.text())
+            const query = await fetch(document.baseURI + 'query.sql').then(res => res.text())
+
             _eval(`p = new Parser()`)
-            _eval(`// Add Schema DDL
-p.addDdl('create table test (a integer, b varchar(255) not null)')`);
             _eval(`// Define function types
-p.defineFunc('current_timestamp', 'ETTimestamp', false)`);
-            _eval(`// Parse a select sql
-p.parse('select a, b, 1, CURRENT_TIMESTAMP as c from test')`);
+p.defineTransparentFunc("IFNULL");
+p.defineTransparentFunc("SUM");
+p.defineTransparentFunc("ABS");
+p.defineTransparentFunc("GREATEST");
+p.defineTransparentFunc("LEAST");
+p.defineFunc("DATE_SUB", 'ETDatetime', false);
+p.defineFunc("COUNT", 'ETInt', false);
+p.defineFunc("TIMESTAMPDIFF", 'ETReal', false);
+`);
+            _eval(`// original OSSInsight DDL
+p.addDdl(schema)`)
+            _eval(`// https://github.com/pingcap/ossinsight/blob/main/api/queries/trending-repos/template.sql
+p.parse(query)`);
         }
     </script>
     <script>
