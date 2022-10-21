@@ -4,7 +4,6 @@ import (
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/types"
-	"golang.org/x/exp/maps"
 	"reflect"
 	"strings"
 	"tidb-sql-parser/utils"
@@ -78,6 +77,16 @@ func (p *Parser) GetTable(table string) Table {
 	return p.ctx.getTable(table)
 }
 
+type NormalizeDigestData struct {
+	NormalizedSql string
+	Digest        string
+}
+
+func NormalizeDigest(sql string) *NormalizeDigestData {
+	normalized, digest := parser.NormalizeDigest(sql)
+	return &NormalizeDigestData{normalized, digest.String()}
+}
+
 type ParseContext struct {
 	parser *Parser
 	parent *ParseContext
@@ -133,7 +142,6 @@ func (ctx *ParseContext) getColumn(table string, column string) *Column {
 			return t.GetColumn(column)
 		}
 	}
-	println("failed to get column ", table, " ", column, " in ", strings.Join(maps.Keys(ctx.tables), ", "))
 	return nil
 }
 

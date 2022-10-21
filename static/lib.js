@@ -54,9 +54,12 @@ class Parser {
         return __tidbSqlParserExecuteCmd(7, name)
     }
 
-
     close() {
         console.debug('[tidb-sql-parser] open close')
         return __tidbSqlParserExecuteCmd(2)
+    }
+
+    static normalizeDigest (sql) {
+        return __tidbSqlParserExecuteCmd(8, sql)
     }
 }
