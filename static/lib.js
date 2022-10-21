@@ -68,9 +68,12 @@ class Parser {
         return this.#cmd(7, name)
     }
 
-
     close() {
         console.debug('[tidb-sql-parser] close')
         return this.#cmd(2)
+    }
+
+    static normalizeDigest (sql) {
+        return __tidbSqlParserExecuteCmd(8, sql)
     }
 }

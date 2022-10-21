@@ -18,6 +18,7 @@ const (
 	BridgeCmdParserParse
 	BridgeCmdParserGetTable
 	BridgeCmdParserDefineTransparentFunc
+	BridgeCmdParserStaticNormalizeDigest
 )
 
 const (
@@ -90,6 +91,8 @@ func cmd(id int, p *analyze.Parser, cmd int, args []js.Value) *cmdReturn {
 		}
 		p.DefineTransparentFunc(args[0].String())
 		return ok
+	case BridgeCmdParserStaticNormalizeDigest:
+		return &cmdReturn{BridgeCodeOk, analyze.NormalizeDigest(args[0].String())}
 	default:
 		return &cmdReturn{BridgeCodeBadCmd, "BridgeCodeBadCmd"}
 	}
