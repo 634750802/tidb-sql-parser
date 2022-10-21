@@ -151,14 +151,19 @@ func (ctx *ParseContext) parseSelectStmt(as string, stmt *ast.SelectStmt) *Table
 
 	nCtx.parseWithClause(stmt.With, nCtx.addTable)
 
-	from := nCtx.parseJoin(UNNAMED, stmt.From.TableRefs)
-	nCtx.addTables(from)
+	var from Table
+	if stmt.From != nil {
+		from = nCtx.parseJoin(UNNAMED, stmt.From.TableRefs)
+		nCtx.addTables(from)
+	}
 
 	table := NewTableDefine(as)
 	for _, field := range stmt.Fields.Fields {
 		if field.WildCard != nil {
 			if field.WildCard.Table.L == "" {
-				table.Merge(from)
+				if from != nil {
+					table.Merge(from)
+				}
 			} else {
 				table.Merge(nCtx.getTable(field.WildCard.Table.L))
 			}

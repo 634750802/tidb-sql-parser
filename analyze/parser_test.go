@@ -9,6 +9,14 @@ import (
 )
 import _ "github.com/pingcap/tidb/parser/test_driver"
 
+func TestBasic(t *testing.T) {
+	p := NewParser()
+
+	columns := p.Parse("select true")
+
+	AssertColumnEquals(t, columns[0], NewColumn("true", types.ETInt, false))
+}
+
 func TestSimpleSQL(t *testing.T) {
 	p := NewParser()
 
@@ -55,7 +63,16 @@ func TestTrendingRepoSQL(t *testing.T) {
 	p.DefineFunc("COUNT", &Tp{types.ETInt, false})
 	p.DefineFunc("TIMESTAMPDIFF", &Tp{types.ETReal, false})
 	cols := p.Parse(readTestResource(t, "test_query.sql"))
-	for _, col := range cols {
-		println(col.Name, col.Type, col.Nullable)
-	}
+
+	AssertColumnEquals(t, cols[0], NewColumn("repo_id", types.ETInt, false))
+	AssertColumnEquals(t, cols[1], NewColumn("repo_name", types.ETString, false))
+	AssertColumnEquals(t, cols[2], NewColumn("primary_language", types.ETString, false))
+	AssertColumnEquals(t, cols[3], NewColumn("description", types.ETString, false))
+	AssertColumnEquals(t, cols[4], NewColumn("stars_inc", types.ETInt, false))
+	AssertColumnEquals(t, cols[5], NewColumn("forks_inc", types.ETInt, false))
+	AssertColumnEquals(t, cols[6], NewColumn("total", types.ETInt, false))
+	AssertColumnEquals(t, cols[7], NewColumn("total", types.ETInt, false))
+	AssertColumnEquals(t, cols[8], NewColumn("total_score", types.ETReal, false))
+	AssertColumnEquals(t, cols[9], NewColumn("actor_logins", types.ETString, false))
+	AssertColumnEquals(t, cols[10], NewColumn("collection_names", types.ETString, false))
 }

@@ -13,18 +13,7 @@ type Tp struct {
 	Nullable bool
 }
 
-const (
-	ETInt       = "ETInt"
-	ETReal      = "ETReal"
-	ETDecimal   = "ETDecimal"
-	ETString    = "ETString"
-	ETDatetime  = "ETDatetime"
-	ETTimestamp = "ETTimestamp"
-	ETDuration  = "ETDuration"
-	ETJson      = "ETJson"
-)
-
-var EvalTypes = []string{ETInt, ETReal, ETDecimal, ETString, ETDatetime, ETTimestamp, ETDuration, ETJson}
+var EvalTypes = []string{"ETInt", "ETReal", "ETDecimal", "ETString", "ETDatetime", "ETTimestamp", "ETDuration", "ETJson"}
 
 type Column struct {
 	Tp
