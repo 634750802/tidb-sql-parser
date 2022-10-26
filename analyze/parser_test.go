@@ -12,7 +12,7 @@ import _ "github.com/pingcap/tidb/parser/test_driver"
 func TestBasic(t *testing.T) {
 	p := NewParser()
 
-	columns := p.Parse("select true")
+	columns, _ := p.Parse("select true")
 
 	AssertColumnEquals(t, columns[0], NewColumn("true", types.ETInt, false))
 }
@@ -29,7 +29,7 @@ func TestSimpleSQL(t *testing.T) {
 	AssertColumnEquals(t, p.ctx.getTable("test").GetColumn("id"), id)
 	AssertColumnEquals(t, p.ctx.getTable("test").GetColumn("name"), name)
 
-	columns := p.Parse("select id, t.name, 1 as d, 's' as s, CURRENT_TIMESTAMP as t, 1 + 1.2 as n, 1 + 1 from test as t")
+	columns, _ := p.Parse("select id, t.name, 1 as d, 's' as s, CURRENT_TIMESTAMP as t, 1 + 1.2 as n, 1 + 1 from test as t")
 
 	AssertColumnEquals(t, columns[0], id)
 	AssertColumnEquals(t, columns[1], name)
@@ -62,7 +62,7 @@ func TestTrendingRepoSQL(t *testing.T) {
 	p.DefineFunc("DATE_SUB", &Tp{types.ETDatetime, false})
 	p.DefineFunc("COUNT", &Tp{types.ETInt, false})
 	p.DefineFunc("TIMESTAMPDIFF", &Tp{types.ETReal, false})
-	cols := p.Parse(readTestResource(t, "test_query.sql"))
+	cols, _ := p.Parse(readTestResource(t, "test_query.sql"))
 
 	AssertColumnEquals(t, cols[0], NewColumn("repo_id", types.ETInt, false))
 	AssertColumnEquals(t, cols[1], NewColumn("repo_name", types.ETString, false))

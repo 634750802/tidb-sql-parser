@@ -54,6 +54,8 @@ export interface Parser {
     Parse(sql: string): Column[]
 
     GetTable(name: string): TableDefine
+
+    Warns(): string[]
 }
 
 export interface Program {

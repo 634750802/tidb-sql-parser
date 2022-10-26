@@ -1,12 +1,15 @@
 package analyze
 
 import (
+	"fmt"
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/opcode"
 	"github.com/pingcap/tidb/parser/types"
 	"reflect"
+	"runtime/debug"
 	"strings"
+	"tidb-sql-parser/js/wasm"
 	"tidb-sql-parser/utils"
 )
 
@@ -27,6 +30,10 @@ func NewParser() *Parser {
 	}
 	p.ctx.parser = p
 	return p
+}
+
+func (p *Parser) Warns() []string {
+	return p.ctx.warn
 }
 
 func (p *Parser) DefineFunc(name string, tp *Tp) {
@@ -62,13 +69,30 @@ func (p *Parser) AddDdl(sql string) {
 	}
 }
 
-func (p *Parser) Parse(sql string) []*Column {
+func (p *Parser) Parse(sql string) (columns []*Column, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			fmt.Println("stacktrace from error: \n" + string(debug.Stack()))
+			columns = nil
+			switch e := e.(type) {
+			case error:
+				err = e
+			case string:
+				err = &wasm.RuntimeError{Message: e}
+			default:
+				err = &wasm.RuntimeError{Message: "unknown error of type " + reflect.TypeOf(e).String()}
+			}
+		}
+	}()
+
+	p.ctx.warn = make([]string, 0)
+
 	stmt, err := p.parser.ParseOneStmt(sql, "", "")
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if s, ok := stmt.(*ast.SelectStmt); ok {
-		return p.ctx.parseSelectStmt(UNNAMED, s).Columns()
+		return p.ctx.parseSelectStmt(UNNAMED, s).Columns(), nil
 	} else {
 		panic(unimplementedNodeType(stmt))
 	}
@@ -274,19 +298,14 @@ func (ctx *ParseContext) parseExpr(expr ast.ExprNode) *Column {
 	} else if t, ok := expr.(ast.ValueExpr); ok {
 		return NewColumn(UNNAMED, t.GetType().EvalType(), false)
 	} else if f, ok := expr.(*ast.AggregateFuncExpr); ok {
-		if tp := ctx.parseFuncType(f.F, f.Args); tp != nil {
-			return &Column{*tp, UNNAMED, ""}
-		} else {
-			ctx.warn = append(ctx.warn, "meet unknown aggregate func "+f.F)
-			return NewColumn(UNNAMED, types.ETString, false)
-		}
+		tp := ctx.parseFuncType(f.F, f.Args)
+		return &Column{*tp, UNNAMED, ""}
 	} else if f, ok := expr.(*ast.FuncCallExpr); ok {
-		if tp := ctx.parseFuncType(f.FnName.L, f.Args); tp != nil {
-			return &Column{*tp, UNNAMED, ""}
-		} else {
-			ctx.warn = append(ctx.warn, "meet unknown aggregate func "+f.FnName.O)
-			return NewColumn(UNNAMED, types.ETString, false)
-		}
+		tp := ctx.parseFuncType(f.FnName.O, f.Args)
+		return &Column{*tp, UNNAMED, ""}
+	} else if f, ok := expr.(*ast.WindowFuncExpr); ok {
+		tp := ctx.parseFuncType(f.F, f.Args)
+		return &Column{*tp, UNNAMED, ""}
 	}
 	panic(unimplementedNodeType(expr))
 }
@@ -301,6 +320,7 @@ func (ctx *ParseContext) parseFuncType(name string, args []ast.ExprNode) *Tp {
 		})
 		return args[0]
 	}
+	ctx.warn = append(ctx.warn, "Unknown type of func "+name+". Use Parser.DefineFunc or Parser.DefineTransparentFunc to provide accurate type.")
 	return &Tp{
 		types.ETString,
 		false,

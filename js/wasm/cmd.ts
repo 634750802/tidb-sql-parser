@@ -27,8 +27,8 @@ const GENERAL_CMD_CODE_OK = 0x00000000n
 const GENERAL_CMD_CODE_BAD_CMD = 0xff000000n
 
 class GeneralCmdError extends Error {
-    constructor(code: bigint, message: string) {
-        super(`General command error ${code}: ${message}`);
+    constructor(public code: bigint, message: string) {
+        super(message);
     }
 }
 

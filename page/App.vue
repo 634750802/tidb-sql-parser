@@ -1,34 +1,24 @@
 <template>
   <main class="container">
-    <h1>
+    <h1 class="display-1">
       TiDB SQL Parser
     </h1>
-    <section>
-      <h2>DDL SQL</h2>
-      <div
-          class="editor"
-          ref="ddlEl"
-          id="ddl"
-      />
-    </section>
 
-    <section>
-      <h2>Function defines</h2>
-      <div
-          class="editor"
-          ref="definesEl"
-          id="defines"
-      />
-    </section>
+    <br/>
 
-    <section>
-      <h2>Query SQL</h2>
-      <div
-          class="editor"
-          ref="queryEl"
-          id="query"
-      />
-    </section>
+    <b-tabs>
+      <b-tab v-for="s in sections" :key="s.key" :title="s.title" :active="section === s.key"
+             @click="() => section = s.key">
+        <keep-alive>
+          <monaco-editor
+              v-if="section === s.key"
+              :language="s.language"
+              :model-value="s.value.value"
+              @update:model-value="val => s.value.value = val"
+          />
+        </keep-alive>
+      </b-tab>
+    </b-tabs>
 
     <section>
       <b-button variant="primary" @click="parse">
@@ -36,7 +26,16 @@
       </b-button>
     </section>
 
-    <section>
+    <section v-if="warns.length">
+      <b-alert show variant="warning">
+        <h4 class="alert-heading">Warns</h4>
+        <ul>
+          <li v-for="warn in warns">{{ warn }}</li>
+        </ul>
+      </b-alert>
+    </section>
+
+    <section v-if="columns">
       <b-table-simple hover small caption-top responsive>
         <b-thead head-variant="dark">
           <b-tr>
@@ -54,86 +53,98 @@
         </b-tbody>
       </b-table-simple>
     </section>
+
+    <section v-if="error">
+      <b-alert show variant="danger">
+        <h4 class="alert-heading">Somethings wrong</h4>
+        <pre>{{ error?.message }}</pre>
+      </b-alert>
+    </section>
   </main>
 </template>
 <script lang="ts" setup>
-import {ref, shallowRef, watch} from "vue";
+import {defineAsyncComponent, Ref, ref, shallowRef} from "vue";
 import {Column, EvalTypeNames, init} from "./index";
-import type {editor} from "monaco-editor";
-import * as monaco from 'monaco-editor';
-import TsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker.js?worker'
-import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker'
 import DDL_SQL from './schema.sql?raw'
-import QUERY_SQL from './query.sql?raw'
 import DEFINES_JS from './defines.js?raw'
 
+const MonacoEditor = defineAsyncComponent(() => import("./components/monaco-editor"));
+
+const usp = new URLSearchParams(window.location.search)
+
+const query = usp.get('query') || 'trending-repos'
+
+const QUERY_URL = `https://raw.githubusercontent.com/pingcap/ossinsight/main/api/queries/${query}/template.sql`
+
+
+const section = ref<'ddl' | 'defines' | 'query'>('query')
+const sections: {
+  key: string
+  title: string
+  language: string
+  value: Ref<string>
+}[] = [
+  {
+    key: 'query',
+    title: 'Query',
+    language: 'mysql',
+    value: ref('-- Loading...'),
+  },
+  {
+    key: 'ddl',
+    title: 'DDL',
+    language: 'mysql',
+    value: ref(DDL_SQL),
+  },
+  {
+    key: 'defines',
+    title: 'Defines',
+    language: 'javascript',
+    value: ref(DEFINES_JS),
+  },
+]
+
+fetch(QUERY_URL).then(res => res.text()).then(text => {
+  sections[0].value.value = `-- ${QUERY_URL}\n\n${text}`
+})
+
 const columns = shallowRef<Column[]>()
-
-const ddlEl = ref<HTMLTextAreaElement | null>(null)
-const queryEl = ref<HTMLTextAreaElement | null>(null)
-const definesEl = ref<HTMLTextAreaElement | null>(null)
-
-const ddlEditor = shallowRef<editor.IStandaloneCodeEditor>()
-const queryEditor = shallowRef<editor.IStandaloneCodeEditor>()
-const definesEditor = shallowRef<editor.IStandaloneCodeEditor>()
-
-window.MonacoEnvironment = {
-  getWorker: function (workerId, label) {
-    switch (label) {
-      case 'typescript':
-      case 'javascript':
-        return new TsWorker();
-      default:
-        return new EditorWorker();
-    }
-  }
-};
+const error = ref<unknown>()
+const warns = shallowRef<string[]>([])
 
 async function parse() {
-  const program = await init()
-  const p = program.newParser();
+  try {
+    columns.value = undefined
+    error.value = undefined
+    warns.value = []
+    const program = await init()
+    const p = program.newParser();
 
+    p.AddDdl(sections.find(s => s.key === 'ddl')!.value.value)
+    eval(sections.find(s => s.key === 'defines')!.value.value)
 
-  p.AddDdl(ddlEditor.value!.getValue())
-  eval(definesEditor.value!.getValue())
+    const rawColumns = p.Parse(sections.find(s => s.key === 'query')!.value.value)
+    // go value would be unavailable after program stopped.
+    columns.value = JSON.parse(JSON.stringify(rawColumns))
+    const w = warns.value = p.Warns()
 
-  // go value would be unavailable after program stopped.
-  columns.value = JSON.parse(JSON.stringify(p.Parse(queryEditor.value!.getValue())))
-  program.stop()
+    console.warn(w)
+
+    program.stop()
+  } catch (e) {
+    error.value = e
+  }
 }
-
-watch(ddlEl, el => {
-  if (el) {
-    ddlEditor.value = monaco.editor.create(el, {
-      value: DDL_SQL,
-      language: 'mysql'
-    });
-  }
-})
-
-watch(definesEl, el => {
-  if (el) {
-    definesEditor.value = monaco.editor.create(el, {
-      value: DEFINES_JS,
-      language: 'javascript',
-    });
-  }
-})
-
-watch(queryEl, el => {
-  if (el) {
-    queryEditor.value = monaco.editor.create(el, {
-      value: QUERY_SQL,
-      language: 'mysql',
-    });
-  }
-})
 
 </script>
 <style scoped>
-.editor {
-  min-height: 400px;
-  border: 1px solid lightgray;
+
+::v-deep(.tab-content) {
+  border-width: 1px;
+  border-style: solid;
+  border-color: #515151;
+  border-top: none;
+  padding-right: 1px;
 }
 
 section {

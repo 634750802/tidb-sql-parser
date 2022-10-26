@@ -29,12 +29,13 @@ const (
 )
 
 const (
-	codeOk        uint32 = 0x00000000
-	codeBadType   uint32 = 0x01000000
-	codeBadHandle uint32 = 0x02000000
-	codeBadField  uint32 = 0x03000000
-	codeBadResult uint32 = 0x04000000
-	codeBadCmd    uint32 = 0xff000000
+	codeOk                 uint32 = 0x00000000
+	codeBadType            uint32 = 0x01000000
+	codeBadHandle          uint32 = 0x02000000
+	codeBadField           uint32 = 0x03000000
+	codeBadResult          uint32 = 0x04000000
+	codeBadMethodSignature uint32 = 0x05000000
+	codeBadCmd             uint32 = 0xff000000
 )
 
 const typeMask uint32 = 0xff000000
@@ -117,11 +118,13 @@ func (r *Runtime) cmdReflectGetMethod() uint32 {
 			fArgs[i] = r.jsValueToValue(args[i-1], m.Type.In(i))
 		}
 		ret := m.Func.Call(fArgs)
-		if len(ret) == 0 {
-			return js.Undefined()
+
+		v, err := r.handleResult(m.Type, ret)
+		if err != nil {
+			panic(err)
 		}
 
-		return r.valueToJsValue(ret[0])
+		return r.valueToJsValue(v)
 	}))
 	return codeOk
 }
@@ -170,17 +173,13 @@ func (r *Runtime) cmdReflectCallMethod() uint32 {
 
 	ret := reflect.ValueOf(obj).Method(m.Index).Call(in)
 
-	if len(ret) == 0 {
-		r.setCtxRet(js.Undefined())
-		return codeOk
-	} else if len(ret) > 1 {
-		r.setCtxRet(js.Undefined())
-		r.setCtxErrMsg("JS called method must return only one value")
+	v, err := r.handleResult(mt, ret)
+	if err != nil {
+		r.setCtxErrMsg(err.Error())
 		return codeBadCmd
-	} else {
-		r.setCtxRet(r.valueToJsValue(ret[0]))
-		return codeOk
 	}
+	r.setCtxRet(r.valueToJsValue(v))
+	return codeOk
 }
 
 func (r *Runtime) cmdReflectGetPropertyNames() uint32 {

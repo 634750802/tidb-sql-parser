@@ -6,6 +6,18 @@ import (
 	"tidb-sql-parser/utils"
 )
 
+type RuntimeError struct {
+	Message string
+}
+
+func (e *RuntimeError) Error() string {
+	return e.Message
+}
+
+var errSingleResultMessage = RuntimeError{"Calling go function only support on return value. (or second is error)"}
+
+var errorInterface = reflect.TypeOf((*error)(nil)).Elem()
+
 func (r *Runtime) wrapFunc(f any) js.Func {
 	t := reflect.TypeOf(f)
 	if t.Kind() != reflect.Func {
@@ -22,18 +34,13 @@ func (r *Runtime) wrapFunc(f any) js.Func {
 
 		returned := funcInstance.Call(goArgs)
 
-		if returned == nil {
-			return js.Undefined()
-		} else {
-			if len(returned) > 1 {
-				panic("does not support more than 1 return value")
-			}
-			if len(returned) == 0 {
-				return js.Undefined()
-			}
+		val, err := r.handleResult(t, returned)
 
-			return r.valueToJsValue(returned[0])
+		if err != nil {
+			panic(err)
 		}
+
+		return r.valueToJsValue(val)
 	})
 }
 
@@ -71,6 +78,9 @@ func (r *Runtime) jsValueToValue(arg js.Value, in reflect.Type) reflect.Value {
 }
 
 func (r *Runtime) valueToJsValue(value reflect.Value) js.Value {
+	if !value.IsValid() {
+		return js.Undefined()
+	}
 	switch value.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return js.ValueOf(value.Int())
@@ -107,5 +117,27 @@ func (r *Runtime) valueToJsValue(value reflect.Value) js.Value {
 		return js.ValueOf(res)
 	default:
 		panic("do not support type " + value.Type().String())
+	}
+}
+
+func (r *Runtime) handleResult(mt reflect.Type, result []reflect.Value) (reflect.Value, error) {
+	no := mt.NumOut()
+	if no > 2 {
+		return reflect.ValueOf(nil), &errSingleResultMessage
+	}
+	if no == 2 {
+		if !mt.Out(1).Implements(errorInterface) {
+			return reflect.ValueOf(nil), &errSingleResultMessage
+		}
+		if result[1].IsNil() {
+			return result[0], nil
+		} else {
+			return reflect.ValueOf(nil), result[1].Interface().(error)
+		}
+	}
+	if no == 1 {
+		return result[0], nil
+	} else {
+		return reflect.ValueOf(nil), nil
 	}
 }
