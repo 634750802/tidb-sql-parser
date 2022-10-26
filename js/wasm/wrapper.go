@@ -6,15 +6,7 @@ import (
 	"tidb-sql-parser/utils"
 )
 
-type RuntimeError struct {
-	Message string
-}
-
-func (e *RuntimeError) Error() string {
-	return e.Message
-}
-
-var errSingleResultMessage = RuntimeError{"Calling go function only support on return value. (or second is error)"}
+var errSingleResultMessage = utils.RuntimeError{"Calling go function only support on return value. (or second is error)"}
 
 var errorInterface = reflect.TypeOf((*error)(nil)).Elem()
 

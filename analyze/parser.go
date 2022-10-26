@@ -9,7 +9,6 @@ import (
 	"reflect"
 	"runtime/debug"
 	"strings"
-	"tidb-sql-parser/js/wasm"
 	"tidb-sql-parser/utils"
 )
 
@@ -78,9 +77,9 @@ func (p *Parser) Parse(sql string) (columns []*Column, err error) {
 			case error:
 				err = e
 			case string:
-				err = &wasm.RuntimeError{Message: e}
+				err = &utils.RuntimeError{Message: e}
 			default:
-				err = &wasm.RuntimeError{Message: "unknown error of type " + reflect.TypeOf(e).String()}
+				err = &utils.RuntimeError{Message: "unknown error of type " + reflect.TypeOf(e).String()}
 			}
 		}
 	}()
