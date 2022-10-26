@@ -3,95 +3,140 @@
     <h1>
       TiDB SQL Parser
     </h1>
-    <b-card>
-      <div>
-        <b-form-group
-            id="input-group-ddl"
-            label="DDL"
-            label-for="ddl"
-            description="Write some TiDB DDL SQL here"
-        >
-          <b-form-textarea
-              class="textarea"
-              id="ddl"
-              v-model="ddl"
-              placeholder="Enter DDL"
-              required
-          />
-        </b-form-group>
-        <b-form-group
-            id="input-group-query"
-            label="Query"
-            label-for="query"
-            description="Write some TiDB query SQL here"
-        >
-          <b-form-textarea
-              class="textarea"
-              id="query"
-              v-model="query"
-              placeholder="Enter Query"
-              required
-          />
-        </b-form-group>
-        <b-button variant="primary" @click="parse">
-          Parse!
-        </b-button>
-        <b-table-simple hover small caption-top responsive>
-          <b-thead head-variant="dark">
-            <b-tr>
-              <b-th>Name</b-th>
-              <b-th>Type</b-th>
-              <b-th>Nullable (WIP)</b-th>
-            </b-tr>
-          </b-thead>
-          <b-tbody>
-            <b-tr v-for="column in columns" :key="column.Name">
-              <b-th>{{ column.As || column.Name }}</b-th>
-              <b-td>{{ EvalTypeNames[column.Type] }}</b-td>
-              <b-td>{{ column.Nullable }}</b-td>
-            </b-tr>
-          </b-tbody>
-        </b-table-simple>
-      </div>
-    </b-card>
+    <section>
+      <h2>DDL SQL</h2>
+      <div
+          class="editor"
+          ref="ddlEl"
+          id="ddl"
+      />
+    </section>
+
+    <section>
+      <h2>Function defines</h2>
+      <div
+          class="editor"
+          ref="definesEl"
+          id="defines"
+      />
+    </section>
+
+    <section>
+      <h2>Query SQL</h2>
+      <div
+          class="editor"
+          ref="queryEl"
+          id="query"
+      />
+    </section>
+
+    <section>
+      <b-button variant="primary" @click="parse">
+        Parse!
+      </b-button>
+    </section>
+
+    <section>
+      <b-table-simple hover small caption-top responsive>
+        <b-thead head-variant="dark">
+          <b-tr>
+            <b-th>Name</b-th>
+            <b-th>Type</b-th>
+            <b-th>Nullable (WIP)</b-th>
+          </b-tr>
+        </b-thead>
+        <b-tbody>
+          <b-tr v-for="column in columns" :key="column.Name">
+            <b-th>{{ column.As || column.Name }}</b-th>
+            <b-td>{{ EvalTypeNames[column.Type] }}</b-td>
+            <b-td>{{ column.Nullable }}</b-td>
+          </b-tr>
+        </b-tbody>
+      </b-table-simple>
+    </section>
   </main>
 </template>
 <script lang="ts" setup>
-import {ref, shallowRef} from "vue";
-import {Column, EvalTypes, EvalTypeNames, init} from "./index";
+import {ref, shallowRef, watch} from "vue";
+import {Column, EvalTypeNames, init} from "./index";
+import type {editor} from "monaco-editor";
+import * as monaco from 'monaco-editor';
+import TsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker.js?worker'
+import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker'
+import DDL_SQL from './schema.sql?raw'
+import QUERY_SQL from './query.sql?raw'
+import DEFINES_JS from './defines.js?raw'
 
-const ddl = ref('')
-const query = ref('')
 const columns = shallowRef<Column[]>()
 
-Promise.all([
-  fetch('/schema.sql').then(res => res.text()).then(res => ddl.value = res),
-  fetch('/query.sql').then(res => res.text()).then(res => query.value = res),
-])
-    .then(parse)
+const ddlEl = ref<HTMLTextAreaElement | null>(null)
+const queryEl = ref<HTMLTextAreaElement | null>(null)
+const definesEl = ref<HTMLTextAreaElement | null>(null)
+
+const ddlEditor = shallowRef<editor.IStandaloneCodeEditor>()
+const queryEditor = shallowRef<editor.IStandaloneCodeEditor>()
+const definesEditor = shallowRef<editor.IStandaloneCodeEditor>()
+
+window.MonacoEnvironment = {
+  getWorker: function (workerId, label) {
+    switch (label) {
+      case 'typescript':
+      case 'javascript':
+        return new TsWorker();
+      default:
+        return new EditorWorker();
+    }
+  }
+};
 
 async function parse() {
   const program = await init()
   const p = program.newParser();
 
-  p.DefineTransparentFunc("IFNULL")
-  p.DefineTransparentFunc("ABS")
-  p.DefineTransparentFunc("SUM")
-  p.DefineTransparentFunc("GREATEST")
-  p.DefineTransparentFunc("LEAST")
-  p.DefineFunc("DATE_SUB", {Type: EvalTypes.ETDatetime, Nullable: false})
-  p.DefineFunc("COUNT", {Type: EvalTypes.ETInt, Nullable: false})
-  p.DefineFunc("TIMESTAMPDIFF", {Type: EvalTypes.ETReal, Nullable: false})
-  p.AddDdl(ddl.value)
+
+  p.AddDdl(ddlEditor.value!.getValue())
+  eval(definesEditor.value!.getValue())
 
   // go value would be unavailable after program stopped.
-  columns.value = JSON.parse(JSON.stringify(p.Parse(query.value)))
+  columns.value = JSON.parse(JSON.stringify(p.Parse(queryEditor.value!.getValue())))
   program.stop()
 }
 
+watch(ddlEl, el => {
+  if (el) {
+    ddlEditor.value = monaco.editor.create(el, {
+      value: DDL_SQL,
+      language: 'mysql'
+    });
+  }
+})
+
+watch(definesEl, el => {
+  if (el) {
+    definesEditor.value = monaco.editor.create(el, {
+      value: DEFINES_JS,
+      language: 'javascript',
+    });
+  }
+})
+
+watch(queryEl, el => {
+  if (el) {
+    queryEditor.value = monaco.editor.create(el, {
+      value: QUERY_SQL,
+      language: 'mysql',
+    });
+  }
+})
+
 </script>
 <style scoped>
-.textarea {
-  min-height: 250px;
+.editor {
+  min-height: 400px;
+  border: 1px solid lightgray;
+}
+
+section {
+  margin-top: 16px;
 }
 </style>

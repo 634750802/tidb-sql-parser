@@ -8,7 +8,7 @@ export async function initWasm<T>() {
     const go = new Go()
     go.env.WASM_PREFIX = WASM_PREFIX
 
-    const result = await WebAssembly.instantiateStreaming(fetch('/tidb-sql-parser.wasm'), go.importObject)
+    const result = await WebAssembly.instantiateStreaming(fetch(import.meta.env.BASE_URL + 'tidb-sql-parser.wasm'), go.importObject)
 
     go.run(result.instance).catch((err) => {
         console.error('wasm panic:', err)

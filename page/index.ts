@@ -61,6 +61,23 @@ export interface Program {
     stop (): void
 }
 
+declare global {
+    interface Window {
+        EvalTypes: Record<string, number>
+    }
+}
+
+window.EvalTypes = {
+    ETInt: EvalTypes.ETInt,
+    ETReal: EvalTypes.ETReal,
+    ETDecimal: EvalTypes.ETDecimal,
+    ETString: EvalTypes.ETString,
+    ETDatetime: EvalTypes.ETDatetime,
+    ETTimestamp: EvalTypes.ETTimestamp,
+    ETDuration: EvalTypes.ETDuration,
+    ETJson: EvalTypes.ETJson,
+}
+
 export async function init (): Promise<Program> {
     const Globals = await initWasm<Globals>()
     return {
