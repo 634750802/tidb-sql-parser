@@ -8,7 +8,7 @@
     "start": "vite serve",
     "build:page": "vite build",
     "build": "run-s build:wasm build:page",
-    "prepare:go-wasm-runtime": "cp \"$(go env GOROOT)/misc/wasm/wasm_exec.js\" public/",
+    "prepare:go-wasm-runtime": "mkdir -p public/ && cp \"$(go env GOROOT)/misc/wasm/wasm_exec.js\" public/",
     "prebuild": "sudo ./patch.sh patch",
     "postbuild": "sudo ./patch.sh unpatch",
     "build:wasm": "GOOS=js GOARCH=wasm go build -o public/tidb-sql-parser.wasm main.go"
