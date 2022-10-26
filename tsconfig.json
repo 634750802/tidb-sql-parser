@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "lib": ["ESNext", "DOM"],
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "types": ["vite/client", "shim"],
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "useDefineForClassFields": true
+  },
+  "include": ["js", "types", "page"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

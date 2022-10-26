@@ -1,7 +1,6 @@
 package analyze
 
 import (
-	"encoding/json"
 	"github.com/pingcap/tidb/parser/ast"
 	"github.com/pingcap/tidb/parser/types"
 )
@@ -18,38 +17,22 @@ var EvalTypes = []string{"ETInt", "ETReal", "ETDecimal", "ETString", "ETDatetime
 type Column struct {
 	Tp
 	Name string
+	As   string
 }
 
 func NewColumn(name string, tp types.EvalType, nullable bool) *Column {
 	return &Column{Tp: Tp{tp, nullable}, Name: name}
 }
 
-func (c *Column) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Name     string
-		Type     string
-		Nullable bool
-	}{
-		c.Name,
-		EvalTypes[int(c.Type)],
-		c.Nullable,
-	})
-}
-
 func (c *Column) as(name string) *Column {
-	if c.Name != UNNAMED {
-		return c
+	rn := c.Name
+	if rn == UNNAMED {
+		rn = name
 	}
-	if name == "" {
-		return c
-	} else {
-		return &Column{
-			Tp: Tp{
-				Type:     c.Type,
-				Nullable: c.Nullable,
-			},
-			Name: name,
-		}
+	return &Column{
+		Tp:   c.Tp,
+		Name: rn,
+		As:   name,
 	}
 }
 

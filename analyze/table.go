@@ -1,7 +1,6 @@
 package analyze
 
 import (
-	"encoding/json"
 	"strings"
 )
 
@@ -38,6 +37,9 @@ func NewTableDefine(name string) *TableDefine {
 func (t *TableDefine) AddColumn(column *Column) {
 	t.columns[column.Name] = column
 	t.columnsArr = append(t.columnsArr, column)
+	if column.As != "" {
+		t.columns[column.As] = column
+	}
 }
 
 func (t *TableDefine) GetColumn(name string) *Column {
@@ -52,16 +54,6 @@ func (t *TableDefine) Merge(tables ...Table) {
 			}
 		}
 	}
-}
-
-func (t *TableDefine) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Name    string
-		Columns []*Column
-	}{
-		Name:    t.name,
-		Columns: t.columnsArr,
-	})
 }
 
 func MergeTables(as string, tables ...Table) Table {
@@ -101,16 +93,4 @@ func (t *TableRef) Columns() []*Column {
 
 func (t *TableRef) GetColumn(name string) *Column {
 	return t.table.GetColumn(name)
-}
-
-func (t *TableRef) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Name    string
-		As      string
-		Columns []*Column
-	}{
-		Name:    t.Name(),
-		As:      t.Name(),
-		Columns: t.Columns(),
-	})
 }

@@ -1,3 +1,5 @@
+-- https://github.com/pingcap/ossinsight/blob/main/api/queries/trending-repos/template.sql
+
 WITH stars AS (
     SELECT
         ge.repo_id AS repo_id,

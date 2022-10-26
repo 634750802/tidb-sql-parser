@@ -1,3 +1,5 @@
+-- original OSSInsight DDL
+
 CREATE TABLE `access_logs` (
                                `id` bigint(20) NOT NULL /*T![auto_rand] AUTO_RANDOM(5) */,
                                `remote_addr` varchar(128) NOT NULL DEFAULT '',

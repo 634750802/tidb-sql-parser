@@ -3,6 +3,7 @@ package analyze
 import (
 	"github.com/pingcap/tidb/parser"
 	"github.com/pingcap/tidb/parser/ast"
+	"github.com/pingcap/tidb/parser/opcode"
 	"github.com/pingcap/tidb/parser/types"
 	"reflect"
 	"strings"
@@ -176,7 +177,8 @@ func (ctx *ParseContext) parseSelectStmt(as string, stmt *ast.SelectStmt) *Table
 				table.Merge(nCtx.getTable(field.WildCard.Table.L))
 			}
 		} else {
-			col := nCtx.parseExpr(field.Expr).as(getFieldExprName(field))
+			raw := nCtx.parseExpr(field.Expr)
+			col := raw.as(getFieldExprName(field, raw.Name))
 			if col == nil {
 				nCtx.warn = append(nCtx.warn, "unhandled column "+field.OriginalText())
 			} else {
@@ -189,11 +191,15 @@ func (ctx *ParseContext) parseSelectStmt(as string, stmt *ast.SelectStmt) *Table
 	return table
 }
 
-func getFieldExprName(f *ast.SelectField) string {
-	if f.AsName.L == "" {
-		return f.OriginalText()
+func getFieldExprName(f *ast.SelectField, fallback string) string {
+	if f.AsName.O == "" {
+		if fallback == UNNAMED {
+			return f.OriginalText()
+		} else {
+			return fallback
+		}
 	} else {
-		return f.AsName.L
+		return f.AsName.O
 	}
 }
 
@@ -201,14 +207,35 @@ func booleanColumn(nullable bool) *Column {
 	return NewColumn(UNNAMED, types.ETInt, nullable)
 }
 
+func mergeType(l, r types.EvalType) types.EvalType {
+	if l < r {
+		return r
+	} else {
+		return l
+	}
+}
+
 func mergeTypes(tps ...*Tp) *Tp {
-	// TODO
+	if len(tps) == 0 {
+		return nil
+	}
+	c := Tp{
+		Type:     tps[0].Type,
+		Nullable: tps[0].Nullable,
+	}
+	for i := 1; i < len(tps); i++ {
+		c.Type = mergeType(c.Type, tps[i].Type)
+		c.Nullable = c.Nullable || tps[i].Nullable
+	}
 	return tps[0]
 }
 
 func mergeColumns(name string, columns ...*Column) *Column {
-	// TODO
-	return columns[0].as(name)
+	tps := utils.Map(columns, func(c *Column) *Tp {
+		return &c.Tp
+	})
+	tp := mergeTypes(tps...)
+	return NewColumn(name, tp.Type, tp.Nullable)
 }
 
 func (ctx *ParseContext) parseExpr(expr ast.ExprNode) *Column {
@@ -221,6 +248,9 @@ func (ctx *ParseContext) parseExpr(expr ast.ExprNode) *Column {
 	} else if _, ok := expr.(*ast.IsNullExpr); ok {
 		return booleanColumn(false)
 	} else if b, ok := expr.(*ast.BinaryOperationExpr); ok {
+		if b.Op == opcode.Div {
+			return NewColumn(UNNAMED, types.ETReal, false)
+		}
 		return mergeColumns(UNNAMED, ctx.parseExpr(b.L), ctx.parseExpr(b.R))
 	} else if u, ok := expr.(*ast.UnaryOperationExpr); ok {
 		return ctx.parseExpr(u.V)
@@ -245,14 +275,14 @@ func (ctx *ParseContext) parseExpr(expr ast.ExprNode) *Column {
 		return NewColumn(UNNAMED, t.GetType().EvalType(), false)
 	} else if f, ok := expr.(*ast.AggregateFuncExpr); ok {
 		if tp := ctx.parseFuncType(f.F, f.Args); tp != nil {
-			return &Column{*tp, UNNAMED}
+			return &Column{*tp, UNNAMED, ""}
 		} else {
 			ctx.warn = append(ctx.warn, "meet unknown aggregate func "+f.F)
 			return NewColumn(UNNAMED, types.ETString, false)
 		}
 	} else if f, ok := expr.(*ast.FuncCallExpr); ok {
 		if tp := ctx.parseFuncType(f.FnName.L, f.Args); tp != nil {
-			return &Column{*tp, UNNAMED}
+			return &Column{*tp, UNNAMED, ""}
 		} else {
 			ctx.warn = append(ctx.warn, "meet unknown aggregate func "+f.FnName.O)
 			return NewColumn(UNNAMED, types.ETString, false)
@@ -269,7 +299,7 @@ func (ctx *ParseContext) parseFuncType(name string, args []ast.ExprNode) *Tp {
 		args := utils.Map(args, func(t ast.ExprNode) *Tp {
 			return &ctx.parseExpr(t).Tp
 		})
-		return mergeTypes(args...)
+		return args[0]
 	}
 	return &Tp{
 		types.ETString,
