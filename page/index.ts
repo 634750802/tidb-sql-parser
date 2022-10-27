@@ -1,4 +1,4 @@
-import {initWasm} from "../js/index.js";
+import {initWasm} from "../js";
 
 type Globals = {
     NewParser(): Parser

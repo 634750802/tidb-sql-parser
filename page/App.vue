@@ -10,7 +10,7 @@
       <b-tab v-for="s in sections" :key="s.key" :title="s.title" :active="section === s.key"
              @click="() => section = s.key">
         <keep-alive>
-          <monaco-editor
+          <Codes
               v-if="section === s.key"
               :language="s.language"
               :model-value="s.value.value"
@@ -67,8 +67,15 @@ import {defineAsyncComponent, Ref, ref, shallowRef} from "vue";
 import {Column, EvalTypeNames, init} from "./index";
 import DDL_SQL from './schema.sql?raw'
 import DEFINES_JS from './defines.js?raw'
+import isMobile from "ismobilejs";
 
-const MonacoEditor = defineAsyncComponent(() => import("./components/monaco-editor"));
+const Codes = defineAsyncComponent(() => {
+  if (isMobile(navigator.userAgent)) {
+    return import("./components/highlight")
+  } else {
+    return import("./components/monaco-editor")
+  }
+});
 
 const usp = new URLSearchParams(window.location.search)
 
@@ -142,9 +149,15 @@ async function parse() {
 ::v-deep(.tab-content) {
   border-width: 1px;
   border-style: solid;
-  border-color: #515151;
+  border-color: #dee2e6;
   border-top: none;
   padding-right: 1px;
+}
+
+@media (prefers-color-scheme: dark) {
+  ::v-deep(.tab-content) {
+    border-color: #515151;
+  }
 }
 
 section {
