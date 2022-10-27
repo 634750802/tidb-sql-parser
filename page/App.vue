@@ -70,7 +70,7 @@ import DEFINES_JS from './defines.js?raw'
 import isMobile from "ismobilejs";
 
 const Codes = defineAsyncComponent(() => {
-  if (isMobile(navigator.userAgent)) {
+  if (isMobile(navigator.userAgent).any) {
     return import("./components/highlight")
   } else {
     return import("./components/monaco-editor")
