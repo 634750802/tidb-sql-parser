@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import {RuntimeSharedDataContext} from "./wasm/cmd.js";
 import {createJsBridgeType} from "./wasm/JsBridgeType.js";
 

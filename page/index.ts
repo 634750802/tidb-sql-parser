@@ -56,6 +56,15 @@ export interface Parser {
     GetTable(name: string): TableDefine
 
     Warns(): string[]
+
+    ParseAst (sql: string): any
+
+    NormalizeDigest (sql: string): NormalizeDigestResult
+}
+
+export type NormalizeDigestResult = {
+    NormalizedSql: string
+    Digest: string
 }
 
 export interface Program {
@@ -80,13 +89,13 @@ window.EvalTypes = {
     ETJson: EvalTypes.ETJson,
 }
 
-export async function init (): Promise<Program> {
+export async function init(): Promise<Program> {
     const Globals = await initWasm<Globals>()
     return {
-        newParser () {
+        newParser() {
             return Globals.NewParser()
         },
-        stop () {
+        stop() {
             return Globals.go.exit(0)
         }
     }

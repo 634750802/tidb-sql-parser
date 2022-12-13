@@ -35,6 +35,19 @@
       </b-alert>
     </section>
 
+    <section v-if="normalizeDigestResult">
+      <h2>Normalized Digest</h2>
+      <pre><code>p.NormalizeDigest(sql)</code></pre>
+      <br/>
+      <h3>Normalized sql</h3>
+      <div>
+        <code>{{ normalizeDigestResult.Digest }}</code>
+      </div>
+      <br/>
+      <h3>Digest</h3>
+      <pre><code>{{ normalizeDigestResult.NormalizedSql }}</code></pre>
+    </section>
+
     <section v-if="columns">
       <b-table-simple hover small caption-top responsive>
         <b-thead head-variant="dark">
@@ -64,7 +77,7 @@
 </template>
 <script lang="ts" setup>
 import {defineAsyncComponent, Ref, ref, shallowRef} from "vue";
-import {Column, EvalTypeNames, init} from "./index";
+import {Column, EvalTypeNames, init, NormalizeDigestResult} from "./index";
 import DDL_SQL from './schema.sql?raw'
 import DEFINES_JS from './defines.js?raw'
 import isMobile from "ismobilejs";
@@ -118,6 +131,7 @@ fetch(QUERY_URL).then(res => res.text()).then(text => {
 const columns = shallowRef<Column[]>()
 const error = ref<unknown>()
 const warns = shallowRef<string[]>([])
+const normalizeDigestResult = shallowRef<NormalizeDigestResult>()
 
 async function parse() {
   try {
@@ -130,6 +144,7 @@ async function parse() {
     p.AddDdl(sections.find(s => s.key === 'ddl')!.value.value)
     eval(sections.find(s => s.key === 'defines')!.value.value)
 
+    normalizeDigestResult.value = p.NormalizeDigest(sections.find(s => s.key === 'query')!.value.value)
     const rawColumns = p.Parse(sections.find(s => s.key === 'query')!.value.value)
     // go value would be unavailable after program stopped.
     columns.value = JSON.parse(JSON.stringify(rawColumns))

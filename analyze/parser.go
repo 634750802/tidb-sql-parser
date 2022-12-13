@@ -106,9 +106,21 @@ type NormalizeDigestData struct {
 	Digest        string
 }
 
-func NormalizeDigest(sql string) *NormalizeDigestData {
+func (p *Parser) NormalizeDigest(sql string) *NormalizeDigestData {
 	normalized, digest := parser.NormalizeDigest(sql)
 	return &NormalizeDigestData{normalized, digest.String()}
+}
+
+type AstResult struct {
+	Ast   []ast.StmtNode
+	Warns []error
+	Error error
+}
+
+func (p *Parser) GetAst(sql string) *AstResult {
+	nodes, warns, err := p.parser.ParseSQL(sql)
+
+	return &AstResult{nodes, warns, err}
 }
 
 type ParseContext struct {
